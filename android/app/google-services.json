@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "624601549184",
+    "project_id": "smart-18",
+    "storage_bucket": "smart-18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624601549184:android:6705e93e51378903ba9965",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrC4T29BjI3WVAKGjPCkoyfDcczdAeMeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
