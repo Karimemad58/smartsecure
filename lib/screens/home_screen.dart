@@ -3,7 +3,8 @@ import 'search_screen.dart';
 import 'locker_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String firstName;
+  const HomeScreen({super.key, this.firstName = 'there'});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -54,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hey Nour Usama 👋',
+                          'Hey ${widget.firstName} 👋',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -63,7 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           'Find a locker near you',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[500]),
                         ),
                       ],
                     ),
@@ -162,12 +164,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const SearchScreen()),
+                                MaterialPageRoute(
+                                    builder: (_) => const SearchScreen()),
                               );
                             },
                             child: const Text(
                               'See all',
-                              style: TextStyle(color: Color(0xFF3B6FE8), fontSize: 13),
+                              style: TextStyle(
+                                  color: Color(0xFF3B6FE8), fontSize: 13),
                             ),
                           ),
                         ],
@@ -182,7 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => LockerDetailScreen(location: loc),
+                                builder: (_) =>
+                                    LockerDetailScreen(location: loc),
                               ),
                             );
                           },
@@ -204,13 +209,24 @@ class _HomeScreenState extends State<HomeScreen> {
         unselectedItemColor: Colors.grey[400],
         backgroundColor: Colors.white,
         elevation: 12,
-        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        selectedLabelStyle:
+            const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(fontSize: 11),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), activeIcon: Icon(Icons.grid_view), label: 'Lockers'),
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner_outlined), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_outlined),
+              activeIcon: Icon(Icons.grid_view),
+              label: 'Lockers'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.qr_code_scanner_outlined), label: 'Scan'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Profile'),
         ],
       ),
     );
@@ -250,7 +266,8 @@ class _LockerCard extends StatelessWidget {
                 color: const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.lock_outlined, color: Color(0xFF3B6FE8), size: 24),
+              child: const Icon(Icons.lock_outlined,
+                  color: Color(0xFF3B6FE8), size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -294,14 +311,18 @@ class _LockerCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3B6FE8),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'Book',
-                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
               ],

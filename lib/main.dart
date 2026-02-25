@@ -1,7 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  //supabase connection
+  await Supabase.initialize(
+    url: 'https://cikciqgrxbphnylebzue.supabase.co',
+    anonKey: 'sb_publishable_MS5dhMvJ43KF1EEU37BMQA_-fzgtiUH',
+  );
+
+  // make sure supabase is connected
+  try {
+    final supabase = Supabase.instance.client;
+    await supabase.from('user').select().limit(1);
+    print('Supabase connected!');
+  } catch (e) {
+    print('Supabase connection failed: $e');
+  }
+
   runApp(const SmartSecureApp());
 }
 

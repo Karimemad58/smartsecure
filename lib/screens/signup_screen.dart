@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -10,6 +11,8 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -19,20 +22,29 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _frontUploaded = false;
   bool _backUploaded = false;
   bool _submitted = false;
+  bool _isLoading = false;
 
+  bool _firstNameTouched = false;
+  bool _lastNameTouched = false;
   bool _emailTouched = false;
   bool _passTouched = false;
   bool _confirmTouched = false;
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
-  // ── Validators ──────────────────────────────────────────
+  String? _validateName(String? v) {
+    if (v == null || v.isEmpty) return 'This field is required';
+    return null;
+  }
+
   String? _validateEmail(String? v) {
     if (v == null || v.isEmpty) return 'Email is required';
     final regex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
@@ -43,8 +55,6 @@ class _SignupScreenState extends State<SignupScreen> {
   String? _validatePassword(String? v) {
     if (v == null || v.isEmpty) return 'Password is required';
     if (v.length < 8) return 'Password must be at least 8 characters';
-    if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Must contain at least one uppercase letter';
-    if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must contain at least one number';
     return null;
   }
 
@@ -54,9 +64,11 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     setState(() {
       _submitted = true;
+      _firstNameTouched = true;
+      _lastNameTouched = true;
       _emailTouched = true;
       _passTouched = true;
       _confirmTouched = true;
@@ -66,15 +78,62 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!formValid) return;
     if (!_frontUploaded || !_backUploaded) return;
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      await supabase.from('user').insert({
+        'first_name': _firstNameController.text.trim(),
+        'last_name': _lastNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully!'),
+            backgroundColor: Color(0xFF3B6FE8),
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                HomeScreen(firstName: _firstNameController.text.trim()),
+          ),
+          (route) => false,
+        );
+      }
+    } on PostgrestException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message.contains('duplicate')
+                ? 'This email is already registered.'
+                : 'Error: ${e.message}'),
+            backgroundColor: const Color(0xFFE53935),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: const Color(0xFFE53935),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  // ── Helpers ─────────────────────────────────────────────
-  bool _fieldHasError(String? Function(String?) validator, TextEditingController c, bool touched) {
+  bool _fieldHasError(String? Function(String?) validator,
+      TextEditingController c, bool touched) {
     return touched && validator(c.text) != null;
   }
 
@@ -93,10 +152,13 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       filled: true,
       fillColor: hasError ? const Color(0xFFFFF5F5) : const Color(0xFFF5F7FF),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: hasError ? const BorderSide(color: Color(0xFFE53935), width: 1.5) : BorderSide.none,
+        borderSide: hasError
+            ? const BorderSide(color: Color(0xFFE53935), width: 1.5)
+            : BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -113,16 +175,24 @@ class _SignupScreenState extends State<SignupScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.5),
       ),
-      errorStyle: const TextStyle(color: Color(0xFFE53935), fontSize: 12, fontWeight: FontWeight.w500),
+      errorStyle: const TextStyle(
+          color: Color(0xFFE53935), fontSize: 12, fontWeight: FontWeight.w500),
       contentPadding: const EdgeInsets.symmetric(vertical: 16),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final emailError = _fieldHasError(_validateEmail, _emailController, _emailTouched);
-    final passError = _fieldHasError(_validatePassword, _passwordController, _passTouched);
-    final confirmError = _fieldHasError(_validateConfirm, _confirmController, _confirmTouched);
+    final firstNameError =
+        _fieldHasError(_validateName, _firstNameController, _firstNameTouched);
+    final lastNameError =
+        _fieldHasError(_validateName, _lastNameController, _lastNameTouched);
+    final emailError =
+        _fieldHasError(_validateEmail, _emailController, _emailTouched);
+    final passError =
+        _fieldHasError(_validatePassword, _passwordController, _passTouched);
+    final confirmError =
+        _fieldHasError(_validateConfirm, _confirmController, _confirmTouched);
     final frontMissing = _submitted && !_frontUploaded;
     final backMissing = _submitted && !_backUploaded;
 
@@ -132,104 +202,193 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Color(0xFF1A1A2E), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Create an account',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-              ),
-              const SizedBox(height: 28),
+      body: AutofillGroup(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Create an account',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E)),
+                ),
+                const SizedBox(height: 28),
 
-              // ── Email ──
-              _label('Email'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autovalidateMode: _emailTouched ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
-                onChanged: (_) => setState(() => _emailTouched = true),
-                decoration: _inputDecoration(hint: 'you@example.com', icon: Icons.email_outlined, hasError: emailError),
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 16),
+                // ── First Name ──
+                _label('First Name'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _firstNameController,
+                  autofillHints: const [AutofillHints.givenName],
+                  autovalidateMode: _firstNameTouched
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  onChanged: (_) => setState(() => _firstNameTouched = true),
+                  decoration: _inputDecoration(
+                      hint: 'John',
+                      icon: Icons.person_outline,
+                      hasError: firstNameError),
+                  validator: _validateName,
+                ),
+                const SizedBox(height: 16),
 
-              // ── Password ──
-              _label('Password'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePass,
-                autovalidateMode: _passTouched ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
-                onChanged: (_) => setState(() => _passTouched = true),
-                decoration: _inputDecoration(hint: 'Min 8 chars, 1 uppercase, 1 number', icon: Icons.lock_outline, hasError: passError).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey[400], size: 20),
-                    onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                // ── Last Name ──
+                _label('Last Name'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _lastNameController,
+                  autofillHints: const [AutofillHints.familyName],
+                  autovalidateMode: _lastNameTouched
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  onChanged: (_) => setState(() => _lastNameTouched = true),
+                  decoration: _inputDecoration(
+                      hint: 'Doe',
+                      icon: Icons.person_outline,
+                      hasError: lastNameError),
+                  validator: _validateName,
+                ),
+                const SizedBox(height: 16),
+
+                // ── Email ──
+                _label('Email'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  autovalidateMode: _emailTouched
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  onChanged: (_) => setState(() => _emailTouched = true),
+                  decoration: _inputDecoration(
+                      hint: 'you@example.com',
+                      icon: Icons.email_outlined,
+                      hasError: emailError),
+                  validator: _validateEmail,
+                ),
+                const SizedBox(height: 16),
+
+                // ── Password ──
+                _label('Password'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePass,
+                  autofillHints: const [AutofillHints.newPassword],
+                  autovalidateMode: _passTouched
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  onChanged: (_) => setState(() => _passTouched = true),
+                  decoration: _inputDecoration(
+                          hint: 'Min 8 characters',
+                          icon: Icons.lock_outline,
+                          hasError: passError)
+                      .copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          _obscurePass
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey[400],
+                          size: 20),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                    ),
+                  ),
+                  validator: _validatePassword,
+                ),
+                const SizedBox(height: 16),
+
+                // ── Confirm Password ──
+                _label('Confirm password'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _confirmController,
+                  obscureText: _obscureConfirm,
+                  autofillHints: const [AutofillHints.newPassword],
+                  autovalidateMode: _confirmTouched
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  onChanged: (_) => setState(() => _confirmTouched = true),
+                  decoration: _inputDecoration(
+                          hint: 'Re-enter your password',
+                          icon: Icons.lock_outline,
+                          hasError: confirmError)
+                      .copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          _obscureConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey[400],
+                          size: 20),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                  validator: _validateConfirm,
+                ),
+                const SizedBox(height: 28),
+
+                // ── ID Upload ──
+                const Text(
+                  'Upload clear photos of your national ID',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A2E)),
+                ),
+                const SizedBox(height: 12),
+                _label('ID Front Side'),
+                const SizedBox(height: 8),
+                _uploadBox('Front Side', _frontUploaded, frontMissing,
+                    () => setState(() => _frontUploaded = true)),
+                const SizedBox(height: 12),
+                _label('ID Back Side'),
+                const SizedBox(height: 8),
+                _uploadBox('Back Side', _backUploaded, backMissing,
+                    () => setState(() => _backUploaded = true)),
+                const SizedBox(height: 32),
+
+                // ── Submit ──
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B6FE8),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2.5),
+                          )
+                        : const Text('Sign up',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
-                validator: _validatePassword,
-              ),
-              const SizedBox(height: 16),
-
-              // ── Confirm Password ──
-              _label('Confirm password'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _confirmController,
-                obscureText: _obscureConfirm,
-                autovalidateMode: _confirmTouched ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
-                onChanged: (_) => setState(() => _confirmTouched = true),
-                decoration: _inputDecoration(hint: 'Re-enter your password', icon: Icons.lock_outline, hasError: confirmError).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey[400], size: 20),
-                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                  ),
-                ),
-                validator: _validateConfirm,
-              ),
-              const SizedBox(height: 28),
-
-              // ── ID Upload ──
-              const Text(
-                'Upload clear photos of your national ID',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
-              ),
-              const SizedBox(height: 12),
-              _label('ID Front Side'),
-              const SizedBox(height: 8),
-              _uploadBox('Front Side', _frontUploaded, frontMissing, () => setState(() => _frontUploaded = true)),
-              const SizedBox(height: 12),
-              _label('ID Back Side'),
-              const SizedBox(height: 8),
-              _uploadBox('Back Side', _backUploaded, backMissing, () => setState(() => _backUploaded = true)),
-              const SizedBox(height: 32),
-
-              // ── Submit ──
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B6FE8),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Sign up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -238,10 +397,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _label(String text) => Text(
         text,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1A1A2E)),
       );
 
-  Widget _uploadBox(String label, bool uploaded, bool hasError, VoidCallback onTap) {
+  Widget _uploadBox(
+      String label, bool uploaded, bool hasError, VoidCallback onTap) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -271,7 +434,9 @@ class _SignupScreenState extends State<SignupScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  uploaded ? Icons.check_circle_outline : Icons.camera_alt_outlined,
+                  uploaded
+                      ? Icons.check_circle_outline
+                      : Icons.camera_alt_outlined,
                   color: uploaded
                       ? const Color(0xFF3B6FE8)
                       : hasError
@@ -298,10 +463,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     if (!uploaded)
                       Text(
-                        'or  Upload',
+                        'or Upload',
                         style: TextStyle(
                           fontSize: 12,
-                          color: hasError ? const Color(0xFFE53935) : Colors.grey[500],
+                          color: hasError
+                              ? const Color(0xFFE53935)
+                              : Colors.grey[500],
                         ),
                       ),
                   ],
@@ -316,7 +483,10 @@ class _SignupScreenState extends State<SignupScreen> {
             padding: EdgeInsets.only(left: 4),
             child: Text(
               'Please upload a photo of this side',
-              style: TextStyle(color: Color(0xFFE53935), fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Color(0xFFE53935),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ],
